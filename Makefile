@@ -82,8 +82,8 @@ vet:
 
 generate-usage-docs: prep-build-dir
 	# The gendoc executable is built with the name "emporous" since the
-    # root command name is built from the base path name of the cli
-    # at runtime.
+	# root command name is built from the base path name of the cli
+	# at runtime.
 	$(GO) build -o $(GO_BUILD_BINDIR)/tmp/$(EXECUTABLE_NAME) "./cmd/gendoc"
 	$(GO_BUILD_BINDIR)/tmp/$(EXECUTABLE_NAME) "docs/usage"
 	@rm -rf ./$(GO_BUILD_BINDIR)/tmp/
