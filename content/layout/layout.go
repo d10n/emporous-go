@@ -12,19 +12,19 @@ import (
 	"strings"
 	"sync"
 
+	empspec "github.com/emporous/collection-spec/specs-go/v1alpha1"
 	"github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	orascontent "oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/oci"
 	"oras.land/oras-go/v2/errdef"
 
-	"github.com/uor-framework/uor-client-go/content"
-	"github.com/uor-framework/uor-client-go/model"
-	"github.com/uor-framework/uor-client-go/model/traversal"
-	"github.com/uor-framework/uor-client-go/nodes/collection"
-	"github.com/uor-framework/uor-client-go/nodes/collection/loader"
-	"github.com/uor-framework/uor-client-go/nodes/descriptor"
-	"github.com/uor-framework/uor-client-go/ocimanifest"
+	"github.com/emporous/emporous-go/content"
+	"github.com/emporous/emporous-go/model"
+	"github.com/emporous/emporous-go/model/traversal"
+	"github.com/emporous/emporous-go/nodes/collection"
+	"github.com/emporous/emporous-go/nodes/collection/loader"
+	"github.com/emporous/emporous-go/nodes/descriptor/v2"
 )
 
 var (
@@ -109,12 +109,53 @@ func (l *Layout) Predecessors(_ context.Context, node ocispec.Descriptor) ([]oci
 	var predecessors []ocispec.Descriptor
 	nodes := l.graph.To(node.Digest.String())
 	for _, n := range nodes {
-		desc, ok := n.(*descriptor.Node)
+		desc, ok := n.(*v2.Node)
 		if ok {
 			predecessors = append(predecessors, desc.Descriptor())
 		}
 	}
 	return predecessors, nil
+}
+
+// ResolveAll traverses the graph and returns all descriptors starting with the reference as a root node.
+func (l *Layout) ResolveAll(ctx context.Context, reference string) ([]ocispec.Descriptor, error) {
+
+	var res []ocispec.Descriptor
+	desc, err := l.Resolve(ctx, reference)
+	if err != nil {
+		return nil, err
+	}
+
+	root := l.graph.NodeByID(desc.Digest.String())
+	if root == nil {
+		return nil, fmt.Errorf("node %q does not exist in graph", reference)
+	}
+
+	tracker := traversal.NewTracker(root, nil)
+	handler := traversal.HandlerFunc(func(ctx context.Context, tracker traversal.Tracker, node model.Node) ([]model.Node, error) {
+		desc, ok := node.(*v2.Node)
+		if ok {
+
+			// Check that the blob actually exists within the file
+			// store. This will filter out blobs in the event that this is a
+			// sparse manifest.
+			exists, err := l.internal.Exists(ctx, desc.Descriptor())
+			if err != nil {
+				return nil, err
+			}
+			if exists {
+				res = append(res, desc.Descriptor())
+			}
+		}
+
+		return l.graph.From(node.ID()), nil
+	})
+
+	if err := tracker.Walk(ctx, handler, root); err != nil {
+		return nil, err
+	}
+
+	return res, err
 }
 
 // ResolveByAttribute returns descriptors linked to the reference that satisfy the specified matcher.
@@ -143,8 +184,9 @@ func (l *Layout) ResolveByAttribute(ctx context.Context, reference string, match
 			return nil, err
 		}
 		if match {
-			desc, ok := node.(*descriptor.Node)
+			desc, ok := node.(*v2.Node)
 			if ok {
+
 				// Check that the blob actually exists within the file
 				// store. This will filter out blobs in the event that this is a
 				// sparse manifest.
@@ -183,9 +225,9 @@ func (l *Layout) AttributeSchema(ctx context.Context, reference string) (ocispec
 	var stopErr = errors.New("stop")
 	tracker := traversal.NewTracker(root, nil)
 	handler := traversal.HandlerFunc(func(ctx context.Context, tracker traversal.Tracker, node model.Node) ([]model.Node, error) {
-		desc, ok := node.(*descriptor.Node)
+		desc, ok := node.(*v2.Node)
 		if ok {
-			if desc.Descriptor().MediaType == ocimanifest.UORSchemaMediaType {
+			if desc.Descriptor().MediaType == empspec.MediaTypeSchemaDescriptor {
 				res = desc.Descriptor()
 				return nil, stopErr
 			}
@@ -203,21 +245,6 @@ func (l *Layout) AttributeSchema(ctx context.Context, reference string) (ocispec
 	}
 
 	return res, nil
-}
-
-// ResolveLinks returns linked collection references for a collection. If the collection
-// has no links, an error is returned.
-func (l *Layout) ResolveLinks(ctx context.Context, reference string) ([]string, error) {
-	desc, err := l.Resolve(ctx, reference)
-	if err != nil {
-		return nil, err
-	}
-	r, err := l.Fetch(ctx, desc)
-	if err != nil {
-		return nil, err
-	}
-	defer r.Close()
-	return ocimanifest.ResolveCollectionLinks(r)
 }
 
 // Tag tags a descriptor with a reference string.
@@ -292,6 +319,10 @@ func (l *Layout) loadIndex(ctx context.Context) error {
 	}
 	defer indexFile.Close()
 
+	fetcherFn := func(ctx context.Context, desc ocispec.Descriptor) ([]byte, error) {
+		return orascontent.FetchAll(ctx, l, desc)
+	}
+
 	if err := json.NewDecoder(indexFile).Decode(&l.index); err != nil {
 		return err
 	}
@@ -302,17 +333,31 @@ func (l *Layout) loadIndex(ctx context.Context) error {
 			l.resolver.Store(key, d)
 		}
 
-		fetcherFn := func(ctx context.Context, desc ocispec.Descriptor) ([]byte, error) {
-			return orascontent.FetchAll(ctx, l, desc)
-		}
-		l.mu.Lock()
-		if err := loader.LoadFromManifest(ctx, l.graph, fetcherFn, d); err != nil {
+		// Ensure the annotations for the root node of the reference are
+		// from the manifest and not the descriptor in the index manifest.
+		var manifest ocispec.Manifest
+		manifestBytes, err := orascontent.FetchAll(ctx, l, d)
+		if err != nil {
 			return err
 		}
-		l.mu.Unlock()
+
+		if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
+			return err
+		}
+		d.Annotations = manifest.Annotations
+
+		if err := l.loadReference(ctx, fetcherFn, d); err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+func (l *Layout) loadReference(ctx context.Context, fetcherFn loader.FetcherFunc, manifest ocispec.Descriptor) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return loader.LoadFromManifest(ctx, l.graph, fetcherFn, manifest)
 }
 
 // validateOCILayoutFile ensure the 'oci-layout' file exists in the

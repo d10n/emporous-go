@@ -10,14 +10,15 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"oras.land/oras-go/v2/content/file"
 
-	"github.com/uor-framework/uor-client-go/api/client/v1alpha1"
-	managerapi "github.com/uor-framework/uor-client-go/api/services/collectionmanager/v1alpha1"
-	"github.com/uor-framework/uor-client-go/attributes/matchers"
-	"github.com/uor-framework/uor-client-go/config"
-	"github.com/uor-framework/uor-client-go/content"
-	"github.com/uor-framework/uor-client-go/manager"
-	"github.com/uor-framework/uor-client-go/registryclient/orasclient"
-	"github.com/uor-framework/uor-client-go/util/workspace"
+	"github.com/emporous/emporous-go/api/client/v1alpha1"
+	managerapi "github.com/emporous/emporous-go/api/services/collectionmanager/v1alpha1"
+	"github.com/emporous/emporous-go/attributes/matchers"
+	"github.com/emporous/emporous-go/config"
+	"github.com/emporous/emporous-go/content"
+	"github.com/emporous/emporous-go/manager"
+	"github.com/emporous/emporous-go/nodes/descriptor"
+	"github.com/emporous/emporous-go/registryclient/orasclient"
+	"github.com/emporous/emporous-go/util/workspace"
 )
 
 var _ managerapi.CollectionManagerServer = &service{}
@@ -86,9 +87,12 @@ func (s *service) ListContent(ctx context.Context, message *managerapi.List_Requ
 
 	nodes := filteredCollection.Nodes()
 	for _, node := range nodes {
-		attributesJSON := node.Attributes().AsJSON()
+		attributesJSON, err := node.Attributes().MarshalJSON()
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 		spb := &structpb.Struct{}
-		err := json.Unmarshal(attributesJSON, spb)
+		err = json.Unmarshal(attributesJSON, spb)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -172,20 +176,25 @@ func (s *service) PublishContent(ctx context.Context, message *managerapi.Publis
 
 // RetrieveContent retrieves collection contact from a storage provider based on client input.
 func (s *service) RetrieveContent(ctx context.Context, message *managerapi.Retrieve_Request) (*managerapi.Retrieve_Response, error) {
-	attrSet, err := config.ConvertToModel(message.Filter.AsMap())
+	attrSet, err := message.Filter.MarshalJSON()
 	if err != nil {
 		return &managerapi.Retrieve_Response{}, status.Error(codes.Internal, err.Error())
 	}
 
 	authConf := authConfig{message.Auth}
-	var matcher matchers.PartialAttributeMatcher = attrSet.List()
-	client, err := orasclient.NewClient(
+	clientOpts := []orasclient.ClientOption{
 		orasclient.WithCache(s.options.PullCache),
 		orasclient.WithCredentialFunc(authConf.Credential),
 		orasclient.WithPlainHTTP(s.options.PlainHTTP),
 		orasclient.SkipTLSVerify(s.options.Insecure),
-		orasclient.WithPullableAttributes(matcher),
-	)
+	}
+
+	var matcher descriptor.JSONSubsetMatcher = attrSet
+	if len(attrSet) != 0 {
+		clientOpts = append(clientOpts, orasclient.WithPullableAttributes(matcher))
+	}
+
+	client, err := orasclient.NewClient(clientOpts...)
 	if err != nil {
 		return &managerapi.Retrieve_Response{}, status.Error(codes.Internal, err.Error())
 	}
@@ -195,7 +204,7 @@ func (s *service) RetrieveContent(ctx context.Context, message *managerapi.Retri
 		}
 	}()
 
-	digests, err := s.mg.PullAll(ctx, message.Source, client, file.New(message.Destination))
+	digests, err := s.mg.Pull(ctx, message.Source, client, file.New(message.Destination))
 	if err != nil {
 		return &managerapi.Retrieve_Response{}, status.Error(codes.Internal, err.Error())
 	}

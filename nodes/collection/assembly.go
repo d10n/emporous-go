@@ -3,7 +3,7 @@ package collection
 import (
 	"errors"
 
-	"github.com/uor-framework/uor-client-go/model"
+	"github.com/emporous/emporous-go/model"
 )
 
 // ErrNodesNotExist is an error that is thrown if an edge
@@ -15,6 +15,12 @@ func (c *Collection) AddNode(node model.Node) error {
 	if _, exists := c.nodes[node.ID()]; exists {
 		return errors.New("node ID collision")
 	}
+	c.nodes[node.ID()] = node
+	return nil
+}
+
+// UpdateNode adds a new node or updates the existing node, if applicable.
+func (c *Collection) UpdateNode(node model.Node) error {
 	c.nodes[node.ID()] = node
 	return nil
 }

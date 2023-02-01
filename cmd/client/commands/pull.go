@@ -10,13 +10,13 @@ import (
 	"github.com/spf13/cobra"
 	"oras.land/oras-go/v2/content/file"
 
-	"github.com/uor-framework/uor-client-go/attributes/matchers"
-	"github.com/uor-framework/uor-client-go/cmd/client/commands/options"
-	"github.com/uor-framework/uor-client-go/config"
-	"github.com/uor-framework/uor-client-go/content/layout"
-	"github.com/uor-framework/uor-client-go/manager/defaultmanager"
-	"github.com/uor-framework/uor-client-go/registryclient/orasclient"
-	"github.com/uor-framework/uor-client-go/util/examples"
+	"github.com/emporous/emporous-go/cmd/client/commands/options"
+	"github.com/emporous/emporous-go/config"
+	"github.com/emporous/emporous-go/content/layout"
+	"github.com/emporous/emporous-go/manager/defaultmanager"
+	"github.com/emporous/emporous-go/nodes/descriptor"
+	"github.com/emporous/emporous-go/registryclient/orasclient"
+	"github.com/emporous/emporous-go/util/examples"
 )
 
 // PullOptions describe configuration options that can
@@ -62,7 +62,7 @@ func NewPullCmd(common *options.Common) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:           "pull SRC",
-		Short:         "Pull a UOR collection based on content or attribute address",
+		Short:         "Pull a Emporous collection based on content or attribute address",
 		Example:       examples.FormatExamples(clientPullExamples...),
 		SilenceErrors: false,
 		SilenceUsage:  false,
@@ -77,10 +77,10 @@ func NewPullCmd(common *options.Common) *cobra.Command {
 	o.Remote.BindFlags(cmd.Flags())
 	o.RemoteAuth.BindFlags(cmd.Flags())
 
-	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, "output location for artifacts")
-	cmd.Flags().StringVar(&o.AttributeQuery, "attributes", o.AttributeQuery, "attribute query config path")
-	cmd.Flags().BoolVar(&o.PullAll, "pull-all", o.PullAll, "pull all linked collections")
-	cmd.Flags().BoolVar(&o.NoVerify, "no-verify", o.NoVerify, "skip collection signature verification")
+	cmd.Flags().StringVarP(&o.Output, "output", "o", o.Output, "Output location for artifacts")
+	cmd.Flags().StringVar(&o.AttributeQuery, "attributes", o.AttributeQuery, "Attribute query config path")
+	cmd.Flags().BoolVar(&o.PullAll, "pull-all", o.PullAll, "Pull all linked collections")
+	cmd.Flags().BoolVar(&o.NoVerify, "no-verify", o.NoVerify, "Skip collection signature verification")
 
 	return cmd
 }
@@ -106,21 +106,6 @@ func (o *PullOptions) Validate() error {
 }
 
 func (o *PullOptions) Run(ctx context.Context) error {
-
-	matcher := matchers.PartialAttributeMatcher{}
-	if o.AttributeQuery != "" {
-		query, err := config.ReadAttributeQuery(o.AttributeQuery)
-		if err != nil {
-			return err
-		}
-
-		attributeSet, err := config.ConvertToModel(query.Attributes)
-		if err != nil {
-			return err
-		}
-		matcher = attributeSet.List()
-	}
-
 	cache, err := layout.NewWithContext(ctx, o.CacheDir)
 	if err != nil {
 		return err
@@ -131,7 +116,15 @@ func (o *PullOptions) Run(ctx context.Context) error {
 		orasclient.WithAuthConfigs(o.Configs),
 		orasclient.WithPlainHTTP(o.PlainHTTP),
 		orasclient.WithCache(cache),
-		orasclient.WithPullableAttributes(matcher),
+	}
+
+	if o.AttributeQuery != "" {
+		query, err := config.ReadAttributeQuery(o.AttributeQuery)
+		if err != nil {
+			return err
+		}
+		matcher := descriptor.JSONSubsetMatcher(query.Attributes)
+		clientOpts = append(clientOpts, orasclient.WithPullableAttributes(matcher))
 	}
 
 	if !o.NoVerify {

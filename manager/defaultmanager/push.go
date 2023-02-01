@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/uor-framework/uor-client-go/registryclient"
+	"github.com/emporous/emporous-go/registryclient"
 )
 
+// Push pushes collection to a remote location from the underlying content store.
+// If successful, the root descriptor is returned.
 func (d DefaultManager) Push(ctx context.Context, reference string, remote registryclient.Remote) (string, error) {
 	desc, err := remote.Push(ctx, d.store, reference)
 	if err != nil {

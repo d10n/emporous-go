@@ -23,7 +23,7 @@ jobs:
   linters:
     name: Linters
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     strategy:
       matrix:
@@ -46,7 +46,7 @@ jobs:
   project:
     name: Project Checks
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       -
         uses: actions/setup-go@v3
@@ -55,28 +55,27 @@ jobs:
       -
         uses: actions/checkout@v3
         with:
-          path: src/github.com/uor-framework/uor-client-go
+          path: src/github.com/emporous/emporous-go
       -
         name: verify go modules and vendor directory
         run: |
           make vendor
-        working-directory: src/github.com/uor-framework/uor-client-go
+        working-directory: src/github.com/emporous/emporous-go
       -
         name: running unit tests
         run: |
           make test-unit
-        working-directory: src/github.com/uor-framework/uor-client-go
+        working-directory: src/github.com/emporous/emporous-go
       -
         name: running sanity checks
         run: |
           make sanity
-        working-directory: src/github.com/uor-framework/uor-client-go
+        working-directory: src/github.com/emporous/emporous-go
 
   # Release
   release:  
     needs: [linters, project]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     -
@@ -87,7 +86,7 @@ jobs:
           fetch-depth: 0
     -
       name: Install Cosign
-      uses: sigstore/cosign-installer@v2.4.1
+      uses: sigstore/cosign-installer@v2.8.1
       id: cosign
     -
       name: Install SBOM

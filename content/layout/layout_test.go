@@ -9,13 +9,13 @@ import (
 	"strings"
 	"testing"
 
+	empspec "github.com/emporous/collection-spec/specs-go/v1alpha1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/require"
 
-	"github.com/uor-framework/uor-client-go/attributes"
-	"github.com/uor-framework/uor-client-go/attributes/matchers"
-	"github.com/uor-framework/uor-client-go/model"
-	"github.com/uor-framework/uor-client-go/ocimanifest"
+	"github.com/emporous/emporous-go/attributes"
+	"github.com/emporous/emporous-go/attributes/matchers"
+	"github.com/emporous/emporous-go/model"
 )
 
 func TestExists(t *testing.T) {
@@ -242,10 +242,9 @@ func TestValidateOCILayoutFile(t *testing.T) {
 func TestPredecessors(t *testing.T) {
 	cacheDir := "testdata/valid"
 	expected := []ocispec.Descriptor{{
-		MediaType:   "application/vnd.oci.image.manifest.v1+json",
-		Digest:      "sha256:473f7d69dbc51105aff4bb2f7ec80e27402d2f40c3e9a076e8c773b15969eadf",
-		Size:        1013,
-		Annotations: map[string]string{"org.opencontainers.image.ref.name": "localhost:5001/test:latest"},
+		MediaType: "application/vnd.oci.image.manifest.v1+json",
+		Digest:    "sha256:473f7d69dbc51105aff4bb2f7ec80e27402d2f40c3e9a076e8c773b15969eadf",
+		Size:      1013,
 	}}
 	ctx := context.TODO()
 	l, err := NewWithContext(ctx, cacheDir)
@@ -276,16 +275,16 @@ func TestResolveByAttribute(t *testing.T) {
 		{
 			name:     "Success/MatchFound",
 			cacheDir: "testdata/attributes",
-			ref:      "localhost:5001/test1:latest",
+			ref:      "localhost:5001/test:latest",
 			matcher: matchers.PartialAttributeMatcher{
-				"type": attributes.NewString("type", "jpg"),
+				"org.opencontainers.image.title": attributes.NewString("org.opencontainers.image.title", "fish.jpg"),
 			},
 			expRes: []ocispec.Descriptor{
 				{
 					MediaType:   "image/jpeg",
 					Digest:      "sha256:2e30f6131ce2164ed5ef017845130727291417d60a1be6fad669bdc4473289cd",
 					Size:        5536,
-					Annotations: map[string]string{"org.opencontainers.image.title": "images/fish.jpg", "type": "jpg"},
+					Annotations: map[string]string{"org.opencontainers.image.title": "fish.jpg", "uor.attributes": "{\"converted\":{\"org.opencontainers.image.title\":\"fish.jpg\"},\"unknown\":{\"type\":\"jpg\"}}"},
 				},
 			},
 		},
@@ -321,46 +320,6 @@ func TestResolveByAttribute(t *testing.T) {
 	}
 }
 
-func TestResolveLinks(t *testing.T) {
-	type spec struct {
-		name     string
-		cacheDir string
-		ref      string
-		expRes   []string
-		expError string
-	}
-
-	cases := []spec{
-		{
-			name:     "Success/LinksFound",
-			cacheDir: "testdata/attributes",
-			ref:      "localhost:5001/test3:latest",
-			expRes:   []string{"localhost:5001/test1:latest"},
-		},
-		{
-			name:     "Failure/NoCollectionLinks",
-			cacheDir: "testdata/valid",
-			ref:      "localhost:5001/test:latest",
-			expError: "no collection links",
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			ctx := context.TODO()
-			l, err := NewWithContext(ctx, c.cacheDir)
-			require.NoError(t, err)
-			res, err := l.ResolveLinks(ctx, c.ref)
-			if c.expError != "" {
-				require.EqualError(t, err, c.expError)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, c.expRes, res)
-			}
-		})
-	}
-}
-
 func TestAttributeSchema(t *testing.T) {
 	type spec struct {
 		name     string
@@ -376,9 +335,10 @@ func TestAttributeSchema(t *testing.T) {
 			cacheDir: "testdata/schema",
 			ref:      "localhost:5001/schema-test:latest",
 			expRes: ocispec.Descriptor{
-				MediaType: ocimanifest.UORSchemaMediaType,
-				Digest:    "sha256:a50ae3a26456b388ec5174e4f8b580ec26a9f94fb2a29a68e00516b3ddef5e76",
-				Size:      77,
+				MediaType:   empspec.MediaTypeSchemaDescriptor,
+				Digest:      "sha256:a50ae3a26456b388ec5174e4f8b580ec26a9f94fb2a29a68e00516b3ddef5e76",
+				Size:        77,
+				Annotations: map[string]string{"emporous.attributes": "{\"core-schema\":{\"id\":\"\"}}"},
 			},
 		},
 		{

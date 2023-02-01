@@ -3,7 +3,7 @@ package commands
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/uor-framework/uor-client-go/cmd/client/commands/options"
+	"github.com/emporous/emporous-go/cmd/client/commands/options"
 )
 
 // BuildOptions describe configuration options that can
@@ -22,7 +22,6 @@ func NewBuildCmd(common *options.Common) *cobra.Command {
 		Short:         "Build and save an OCI artifact from files",
 		SilenceErrors: false,
 		SilenceUsage:  false,
-		Args:          cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},

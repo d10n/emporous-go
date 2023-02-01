@@ -3,8 +3,8 @@ package defaultmanager
 import (
 	"context"
 
-	"github.com/uor-framework/uor-client-go/nodes/collection"
-	"github.com/uor-framework/uor-client-go/registryclient"
+	"github.com/emporous/emporous-go/nodes/collection"
+	"github.com/emporous/emporous-go/registryclient"
 )
 
 func (d DefaultManager) List(ctx context.Context, reference string, remote registryclient.Remote) (*collection.Collection, error) {

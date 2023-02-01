@@ -3,10 +3,11 @@ package config
 import (
 	"testing"
 
+	empspec "github.com/emporous/collection-spec/specs-go/v1alpha1"
 	"github.com/stretchr/testify/require"
 
-	"github.com/uor-framework/uor-client-go/api/client/v1alpha1"
-	"github.com/uor-framework/uor-client-go/schema"
+	"github.com/emporous/emporous-go/api/client/v1alpha1"
+	"github.com/emporous/emporous-go/schema"
 )
 
 func TestReadAttributeQuery(t *testing.T) {
@@ -26,9 +27,7 @@ func TestReadAttributeQuery(t *testing.T) {
 					Kind:       v1alpha1.AttributeQueryKind,
 					APIVersion: v1alpha1.GroupVersion,
 				},
-				Attributes: map[string]interface{}{
-					"size": "small",
-				},
+				Attributes: []byte(`{"size":"small"}`),
 			},
 		},
 		{
@@ -75,6 +74,10 @@ func TestReadDataSetConfig(t *testing.T) {
 							File: "*.json",
 							Attributes: map[string]interface{}{
 								"fiction": true,
+							},
+							FileInfo: empspec.File{
+								UID: -1,
+								GID: -1,
 							},
 						},
 					},

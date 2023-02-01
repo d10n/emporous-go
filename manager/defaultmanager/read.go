@@ -3,12 +3,12 @@ package defaultmanager
 import (
 	"context"
 
+	empspec "github.com/emporous/collection-spec/specs-go/v1alpha1"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
-	"github.com/uor-framework/uor-client-go/attributes"
-	"github.com/uor-framework/uor-client-go/nodes/descriptor"
-	"github.com/uor-framework/uor-client-go/ocimanifest"
-	"github.com/uor-framework/uor-client-go/registryclient"
+	"github.com/emporous/emporous-go/attributes"
+	"github.com/emporous/emporous-go/nodes/descriptor/v2"
+	"github.com/emporous/emporous-go/registryclient"
 )
 
 func (d DefaultManager) ReadLayer(ctx context.Context, source string, title string, remote registryclient.Remote) ([]byte, error) {
@@ -21,16 +21,16 @@ func (d DefaultManager) ReadLayer(ctx context.Context, source string, title stri
 	for _, node := range graph.Nodes() {
 		// Check that this is a descriptor node and the blob is
 		// not a config or schema resource.
-		desc, ok := node.(*descriptor.Node)
+		desc, ok := node.(*v2.Node)
 		if !ok {
 			continue
 		}
 		switch desc.Descriptor().MediaType {
-		case ocimanifest.UORSchemaMediaType:
+		case empspec.MediaTypeSchemaDescriptor:
 			continue
 		case ocispec.MediaTypeImageConfig:
 			continue
-		case ocimanifest.UORConfigMediaType:
+		case empspec.MediaTypeConfiguration:
 			continue
 		}
 		exists, err := desc.Attributes().Exists(titleAttribute)

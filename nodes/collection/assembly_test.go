@@ -5,10 +5,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/uor-framework/uor-client-go/attributes"
-	"github.com/uor-framework/uor-client-go/attributes/matchers"
-	"github.com/uor-framework/uor-client-go/model"
-	"github.com/uor-framework/uor-client-go/util/testutils"
+	"github.com/emporous/emporous-go/attributes"
+	"github.com/emporous/emporous-go/attributes/matchers"
+	"github.com/emporous/emporous-go/model"
+	"github.com/emporous/emporous-go/util/testutils"
 )
 
 func TestCollection_SubCollection(t *testing.T) {
@@ -25,15 +25,15 @@ func TestCollection_SubCollection(t *testing.T) {
 		{
 			name: "Success/NilMatcher",
 			nodes: []model.Node{
-				&testutils.MockNode{I: "node1", A: attributes.Attributes{
+				&testutils.FakeNode{I: "node1", A: attributes.Attributes{
 					"test": attributes.NewString("test", "match"),
 				}},
-				&testutils.MockNode{I: "node2", A: attributes.Attributes{
+				&testutils.FakeNode{I: "node2", A: attributes.Attributes{
 					"test": attributes.NewString("test", "notmatch"),
 				}},
 			},
 			edges: []model.Edge{
-				&Edge{T: &testutils.MockNode{I: "node2"}, F: &testutils.MockNode{I: "node1"}},
+				&Edge{T: &testutils.FakeNode{I: "node2"}, F: &testutils.FakeNode{I: "node1"}},
 			},
 			matcher: nil,
 			assertFunc: func(collection Collection) bool {
@@ -45,15 +45,15 @@ func TestCollection_SubCollection(t *testing.T) {
 		{
 			name: "Success/OneNodeFiltered",
 			nodes: []model.Node{
-				&testutils.MockNode{I: "node1", A: attributes.Attributes{
+				&testutils.FakeNode{I: "node1", A: attributes.Attributes{
 					"test": attributes.NewString("test", "match"),
 				}},
-				&testutils.MockNode{I: "node2", A: attributes.Attributes{
+				&testutils.FakeNode{I: "node2", A: attributes.Attributes{
 					"test": attributes.NewString("test", "notmatch"),
 				}},
 			},
 			edges: []model.Edge{
-				&Edge{T: &testutils.MockNode{I: "node2"}, F: &testutils.MockNode{I: "node1"}},
+				&Edge{T: &testutils.FakeNode{I: "node2"}, F: &testutils.FakeNode{I: "node1"}},
 			},
 			matcher: matchers.PartialAttributeMatcher{
 				"test": attributes.NewString("test", "match"),
@@ -67,15 +67,15 @@ func TestCollection_SubCollection(t *testing.T) {
 		{
 			name: "Success/AllNodesFiltered",
 			nodes: []model.Node{
-				&testutils.MockNode{I: "node1", A: attributes.Attributes{
+				&testutils.FakeNode{I: "node1", A: attributes.Attributes{
 					"test": attributes.NewString("test", "match"),
 				}},
-				&testutils.MockNode{I: "node2", A: attributes.Attributes{
+				&testutils.FakeNode{I: "node2", A: attributes.Attributes{
 					"test": attributes.NewString("test", "notmatch"),
 				}},
 			},
 			edges: []model.Edge{
-				&Edge{T: &testutils.MockNode{I: "node2"}, F: &testutils.MockNode{I: "node1"}},
+				&Edge{T: &testutils.FakeNode{I: "node2"}, F: &testutils.FakeNode{I: "node1"}},
 			},
 			matcher: matchers.PartialAttributeMatcher{
 				"test": attributes.NewString("test", "nomatch"),

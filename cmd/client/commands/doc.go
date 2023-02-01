@@ -1,5 +1,5 @@
 /*
-Copyright 2022 UOR-Framework Authors.
+Copyright 2022 Emporous Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -14,4 +14,4 @@ limitations under the License.
 package commands
 
 // This package defines a reference implementation of the
-// Universal Runtime client and library usage.
+// Emporous client and library usage.

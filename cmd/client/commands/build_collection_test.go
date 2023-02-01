@@ -11,6 +11,7 @@ import (
 	"testing"
 	"text/template"
 
+	empspec "github.com/emporous/collection-spec/specs-go/v1alpha1"
 	"github.com/google/go-containerregistry/pkg/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/require"
@@ -19,9 +20,8 @@ import (
 	"oras.land/oras-go/v2/content/memory"
 	"oras.land/oras-go/v2/registry/remote"
 
-	"github.com/uor-framework/uor-client-go/cmd/client/commands/options"
-	"github.com/uor-framework/uor-client-go/log"
-	"github.com/uor-framework/uor-client-go/ocimanifest"
+	"github.com/emporous/emporous-go/cmd/client/commands/options"
+	"github.com/emporous/emporous-go/log"
 )
 
 func TestBuildCollectionComplete(t *testing.T) {
@@ -199,28 +199,6 @@ func TestBuildCollectionRun(t *testing.T) {
 			},
 		},
 		{
-			name: "Failure/LinksHasNoSchema",
-			opts: &BuildCollectionOptions{
-				BuildOptions: &BuildOptions{
-					Common: &options.Common{
-						IOStreams: genericclioptions.IOStreams{
-							Out:    os.Stdout,
-							In:     os.Stdin,
-							ErrOut: os.Stderr,
-						},
-						Logger: testlogr,
-					},
-					Destination: fmt.Sprintf("%s/client-failnochema:latest", u.Host),
-				},
-				DSConfig: "./testdata/configs/dataset-config-invalidlinks.yaml",
-				RootDir:  "./testdata/multi-level-workspace",
-				Remote: options.Remote{
-					PlainHTTP: true,
-				},
-			},
-			expError: fmt.Sprintf("collection \"%s/schema-test:latest\": no schema", u.Host),
-		},
-		{
 			name: "Failure/InvalidSchema",
 			opts: &BuildCollectionOptions{
 				BuildOptions: &BuildOptions{
@@ -314,15 +292,12 @@ func prepCollectionArtifacts(t *testing.T, host string) map[string]string {
 	fileName := "hello.txt"
 	fileContent := []byte("Hello World!\n")
 	testCollection := fmt.Sprintf("%s/test:latest", host)
-	testCollectionAnnotations := map[string]string{
-		ocimanifest.AnnotationSchema: "test.com/schema:latest",
-	}
-	publishFunc(fileName, testCollection, ocispec.MediaTypeImageLayer, fileContent, map[string]string{"test": "annotation"}, testCollectionAnnotations)
+	publishFunc(fileName, testCollection, ocispec.MediaTypeImageLayer, fileContent, map[string]string{"test": "annotation"}, nil)
 
 	schemaName := "schema"
 	schemaContent := []byte("{\"type\":\"object\",\"properties\":{\"test\":{\"type\": \"string\"}},\"required\":[\"test\"]}")
 	schemaRef := fmt.Sprintf("%s/schema-test:latest", host)
-	publishFunc(schemaName, schemaRef, ocimanifest.UORSchemaMediaType, schemaContent, nil, nil)
+	publishFunc(schemaName, schemaRef, empspec.MediaTypeSchemaDescriptor, schemaContent, nil, nil)
 
 	return map[string]string{
 		"linkedCollection": testCollection,

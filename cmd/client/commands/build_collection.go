@@ -9,14 +9,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/uor-framework/uor-client-go/api/client/v1alpha1"
-	"github.com/uor-framework/uor-client-go/cmd/client/commands/options"
-	load "github.com/uor-framework/uor-client-go/config"
-	"github.com/uor-framework/uor-client-go/content/layout"
-	"github.com/uor-framework/uor-client-go/manager/defaultmanager"
-	"github.com/uor-framework/uor-client-go/registryclient/orasclient"
-	"github.com/uor-framework/uor-client-go/util/examples"
-	"github.com/uor-framework/uor-client-go/util/workspace"
+	"github.com/emporous/emporous-go/api/client/v1alpha1"
+	"github.com/emporous/emporous-go/cmd/client/commands/options"
+	load "github.com/emporous/emporous-go/config"
+	"github.com/emporous/emporous-go/content/layout"
+	"github.com/emporous/emporous-go/manager/defaultmanager"
+	"github.com/emporous/emporous-go/registryclient/orasclient"
+	"github.com/emporous/emporous-go/util/examples"
+	"github.com/emporous/emporous-go/util/workspace"
 )
 
 // BuildCollectionOptions describe configuration options that can
@@ -64,6 +64,7 @@ func NewBuildCollectionCmd(buildOpts *BuildOptions) *cobra.Command {
 
 	o.Remote.BindFlags(cmd.Flags())
 	o.RemoteAuth.BindFlags(cmd.Flags())
+
 	cmd.Flags().StringVarP(&o.DSConfig, "dsconfig", "d", o.DSConfig, "config path for artifact building and dataset configuration")
 	cmd.Flags().BoolVar(&o.NoVerify, "no-verify", o.NoVerify, "skip schema signature verification")
 
@@ -83,7 +84,6 @@ func (o *BuildCollectionOptions) Validate() error {
 	if _, err := os.Stat(o.RootDir); err != nil {
 		return fmt.Errorf("workspace directory %q: %v", o.RootDir, err)
 	}
-
 	return nil
 }
 
